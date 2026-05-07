@@ -1,0 +1,25 @@
+# Build artifacts
+/bin/
+/dist/
+*.exe
+*.app
+*.dmg
+
+# Go test cache
+*.test
+*.out
+coverage.txt
+
+# IDE
+.vscode/
+.idea/
+
+# Brainstorming session artifacts (ephemeral)
+.superpowers/
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
