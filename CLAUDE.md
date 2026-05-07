@@ -2,6 +2,13 @@
 
 Cross-platform desktop app (Win/Linux/macOS) that launches Project Zomboid and manages save backups. Built with Go + Fyne v2.
 
+## Workflow rules (READ FIRST)
+
+- **DO NOT run `git commit`.** The user commits manually. Stop after the working tree changes are ready and summarize what was modified — do not stage with intent to commit on their behalf.
+- **DO NOT run `git push`** (or `git push --force`, tag pushes, branch pushes — anything that touches a remote). The user handles all remote interactions.
+- `git status`, `git diff`, `git log`, `git add` (when explicitly asked to stage), and other read-only / local-only commands are fine.
+- If a task seems to require a commit (e.g. "tag a release"), prepare the changes and tell the user what command to run — don't run it.
+
 ## Project identity
 
 - **Display name:** Project Zomboid Manager
