@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-05-07T12:00:00Z",
+  "repository": "example/pz-manager",
+  "latest": "v0.2.0",
+  "releases": [
+    {
+      "tag": "v0.2.0",
+      "name": "v0.2.0",
+      "published_at": "2026-05-07T11:30:00Z",
+      "prerelease": false,
+      "body_md": "## What's Changed\n\n* feat: add launcher wizard\n* fix: restore handles missing target\n\n**Full Changelog**: https://github.com/example/pz-manager/compare/v0.1.0...v0.2.0",
+      "assets": {
+        "linux-amd64":   { "name": "pz-manager-linux-amd64",       "url": "https://example.com/v0.2.0/pz-manager-linux-amd64",       "size": 33266018 },
+        "darwin-arm64":  { "name": "pz-manager-darwin-arm64",      "url": "https://example.com/v0.2.0/pz-manager-darwin-arm64",      "size": 33266018 },
+        "windows-amd64": { "name": "pz-manager-windows-amd64.exe", "url": "https://example.com/v0.2.0/pz-manager-windows-amd64.exe", "size": 33500000 }
+      }
+    },
+    {
+      "tag": "v0.1.0",
+      "name": "v0.1.0 (initial)",
+      "published_at": "2026-05-06T20:00:00Z",
+      "prerelease": false,
+      "body_md": "Initial MVP release.\n\n- core save listing\n- backups (zip + folder)\n- atomic restore",
+      "assets": {
+        "linux-amd64":   { "name": "pz-manager-linux-amd64",       "url": "https://example.com/v0.1.0/pz-manager-linux-amd64",       "size": 33000000 },
+        "darwin-arm64":  { "name": "pz-manager-darwin-arm64",      "url": "https://example.com/v0.1.0/pz-manager-darwin-arm64",      "size": 33000000 },
+        "windows-amd64": { "name": "pz-manager-windows-amd64.exe", "url": "https://example.com/v0.1.0/pz-manager-windows-amd64.exe", "size": 33500000 }
+      }
+    }
+  ]
+}

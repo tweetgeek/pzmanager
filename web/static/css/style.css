@@ -1,0 +1,166 @@
+:root {
+  --bg: #fafaf7;
+  --bg-card: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #5a5a5a;
+  --accent: #8b3a2c;        /* Zomboid-ish rust red */
+  --accent-text: #ffffff;
+  --border: #e5e5e5;
+  --code-bg: #f0f0ed;
+  --max-width: 980px;
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14130f;
+    --bg-card: #1c1b18;
+    --text: #ececea;
+    --text-muted: #a0a0a0;
+    --accent: #c45a45;
+    --accent-text: #14130f;
+    --border: #2c2b27;
+    --code-bg: #232220;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+main, header.site-header, footer.site-footer {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.site-header { padding-top: 3rem; padding-bottom: 1rem; }
+.site-header h1 { margin: 0 0 0.25rem; font-size: 2.4rem; }
+.site-header .tagline { margin: 0; color: var(--text-muted); font-size: 1.1rem; }
+
+main > section { margin: 3rem 0; }
+
+.hero { padding: 1.5rem 0; }
+.hero-lead { font-size: 1.15rem; color: var(--text-muted); max-width: 60ch; }
+.primary-download { margin-top: 1.5rem; }
+.primary-download .download-note { color: var(--text-muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: transform 0.05s ease, box-shadow 0.15s ease;
+}
+.btn:hover { box-shadow: var(--shadow); }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: var(--accent-text); }
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.feature-list { list-style: none; padding: 0; display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 720px) {
+  .feature-list { grid-template-columns: 1fr 1fr; }
+}
+.feature-list li {
+  background: var(--bg-card);
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.downloads-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 1rem;
+}
+.downloads-table th, .downloads-table td {
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.downloads-table tr:last-child td { border-bottom: none; }
+.downloads-table th {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.downloads-table .recommended {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.changelog-entry {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.changelog-entry h3 {
+  margin: 0 0 0.25rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.changelog-entry .version-tag { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.changelog-entry .version-date { color: var(--text-muted); font-size: 0.85rem; font-weight: normal; }
+.changelog-entry .version-prerelease {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+.changelog-entry .body { margin-top: 0.8rem; }
+.changelog-entry .body p { margin: 0.5em 0; }
+.changelog-entry .body ul { padding-left: 1.5rem; }
+.changelog-entry .body code {
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.changelog-entry .body a { color: var(--accent); }
+
+.muted { color: var(--text-muted); }
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 4rem;
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Hidden recommendation badge — shown by JS only on the row matching detected OS. */
+.downloads-table td .recommended-marker { display: none; }
+.downloads-table tr.recommended {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.downloads-table tr.recommended td .recommended-marker { display: inline; }
+
+/* Hide pre-built CTA variants by default; JS unhides one. */
+.cta[hidden] { display: none; }

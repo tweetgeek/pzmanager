@@ -149,6 +149,24 @@ pz-manager --auto-launch -- <args...>   # Steam Launch Options: args after `--`
 
 - Design spec: `docs/superpowers/specs/2026-05-06-pz-manager-design.md`
 - Implementation plan (24 tasks, all completed): `docs/superpowers/plans/2026-05-06-pz-manager.md`
+- Original website plan (superseded): `docs/superpowers/plans/2026-05-07-public-website.md`
+- Hugo + Cloudflare migration plan: `docs/superpowers/plans/2026-05-07-hugo-cloudflare-migration.md`
+
+## Public website (Hugo + Cloudflare Pages)
+
+- Source: `web/` — Hugo project with own custom layouts (no external theme).
+- Deploy: `.github/workflows/pages.yml` listens for `release: published/edited/released`, `workflow_dispatch`, and `push` to `main` touching `web/**`. Builds with Hugo (`peaceiris/actions-hugo@v3`, pinned to `0.160.1` extended), deploys to Cloudflare Pages via `cloudflare/wrangler-action@v3` direct upload.
+- Cloudflare project name in workflow: `pz-manager` — must match the project created manually in the Cloudflare dashboard. Renaming requires updating the workflow.
+- Required GitHub repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`. Without these the workflow fails fast at the Wrangler step.
+- Data contract (`web/data/releases.json`): assembled at build time by `gh api --paginate` + `jq` from the Releases API. Shape: `{ generated_at, repository, latest, releases: [{ tag, name, published_at, prerelease, body_md, assets: { "linux-amd64"|"darwin-arm64"|"windows-amd64": { name, url, size } } }] }`. Sorted newest-first; drafts excluded; `latest` = newest non-prerelease falling back to newest overall. `web/data/releases.json` is gitignored (CI generates it); `web/data/releases.example.json` is committed for local dev.
+- Hugo template (`web/layouts/index.html`) renders downloads table + changelog **statically** at build time — no client-side fetch, no runtime markdown render. Uses `markdownify` (Goldmark) for release notes, `partial "humanizeSize.html"` for byte formatting, and `range $key, $cfg := site.Params.targets` to iterate the three OS targets defined in `web/hugo.toml`.
+- **Hugo data API:** the template uses `hugo.Data.releases` (not `.Site.Data.releases` — that was deprecated in Hugo 0.156+). `site.Params` is still fine.
+- JS only enhances: `web/static/js/os-detect.js` reads `navigator.userAgent`, sets `body[data-target]`, adds `recommended` class on the matching downloads row, and unhides the matching primary CTA variant (hiding the fallback). Page is fully usable with JS off.
+- **Asset filenames in `release.yml` are load-bearing.** The `jq` filter looks up assets by exact name: `pz-manager-linux-amd64`, `pz-manager-darwin-arm64`, `pz-manager-windows-amd64.exe`. Renaming in one workflow without updating the other will silently break the data contract.
+- **`jq` gotcha:** `asset_for` uses `// null` (not `// empty`); with `empty` the entire enclosing release silently disappears from the array because `empty` propagates through object construction.
+- Local dev: `cp web/data/releases.example.json web/data/releases.json && hugo --source web serve` → http://localhost:1313/. Tests at `/js/tests.html`.
+- Hugo install: `brew install hugo` (macOS) or download from gohugoio releases. Must be the **extended** edition.
+- **Privacy:** Cloudflare Pages supports private repos on the free plan. The site itself is public regardless of repo visibility — it exposes only release metadata + asset download URLs, never source.
 
 ## Renaming history
 

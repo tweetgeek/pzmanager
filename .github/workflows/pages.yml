@@ -1,0 +1,97 @@
+name: Pages
+
+# Build the public website with Hugo and deploy to Cloudflare Pages.
+# Triggers:
+#  - on every published/edited release (so the changelog + downloads update)
+#  - on push to main touching web/ or this workflow (for site iteration)
+#  - manual dispatch
+#
+# Secrets required (configure in repo Settings → Secrets and variables → Actions):
+#  - CLOUDFLARE_API_TOKEN     token with Account · Cloudflare Pages · Edit
+#  - CLOUDFLARE_ACCOUNT_ID    your Cloudflare account id
+
+on:
+  release:
+    types: [published, edited, released]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/pages.yml'
+
+# Allow only one concurrent deployment, do not cancel running ones.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    name: Build (Hugo) + Deploy (Cloudflare Pages)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.160.1'
+          extended: true
+
+      - name: Generate web/data/releases.json from GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$REPO/releases" > releases.raw.json
+
+          jq --arg repo "$REPO" \
+             --arg gen "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            def asset_for(name): ((.assets[]? | select(.name == name)) // null);
+
+            map(select(.draft == false))
+            | sort_by(.published_at) | reverse
+            | . as $sorted
+            | {
+                generated_at: $gen,
+                repository: $repo,
+                latest: ([ $sorted[] | select(.prerelease == false) | .tag_name ] | first
+                         // ($sorted[0].tag_name // null)),
+                releases: [
+                  $sorted[] | {
+                    tag: .tag_name,
+                    name: (.name // .tag_name),
+                    published_at: .published_at,
+                    prerelease: .prerelease,
+                    body_md: (.body // ""),
+                    assets: ({
+                      "linux-amd64":   (asset_for("pz-manager-linux-amd64")       | if . then { name: .name, url: .browser_download_url, size: .size } else null end),
+                      "darwin-arm64":  (asset_for("pz-manager-darwin-arm64")      | if . then { name: .name, url: .browser_download_url, size: .size } else null end),
+                      "windows-amd64": (asset_for("pz-manager-windows-amd64.exe") | if . then { name: .name, url: .browser_download_url, size: .size } else null end)
+                    } | with_entries(select(.value != null)))
+                  }
+                ]
+              }
+          ' releases.raw.json > web/data/releases.json
+
+          echo "::group::Generated releases.json"
+          jq '.latest, (.releases | length) as $n | "releases: \($n)"' web/data/releases.json
+          echo "::endgroup::"
+
+      - name: Build site with Hugo
+        env:
+          HUGO_ENVIRONMENT: production
+        run: |
+          hugo --source web --minify
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/public --project-name=pz-manager --branch=main
