@@ -1,0 +1,35 @@
+# Hugo config for the public landing page.
+#
+# baseURL is overridden in CI (`hugo --baseURL "$CF_PAGES_URL"`) so this default
+# is for local development with `hugo serve`.
+
+baseURL      = "http://localhost:1313/"
+languageCode = "en-us"
+title        = "Project Zomboid Manager"
+
+# Don't render section/list pages we won't use.
+disableKinds = ["taxonomy", "term", "RSS", "sitemap"]
+
+# Use the global build-time minifier instead of an asset pipeline.
+[minify]
+  disableHTML = false
+  disableCSS  = false
+  disableJS   = false
+
+# Custom params consumed by layouts/index.html. Keep these names stable —
+# any rename requires updating the template in lockstep.
+[params]
+  description = "Cross-platform desktop launcher and save backup manager for Project Zomboid."
+  tagline     = "Launch the game with auto-backup. Never lose a save again."
+  # Asset filenames produced by .github/workflows/release.yml. Used by the
+  # template to look up release assets by exact name.
+  [params.targets]
+    [params.targets.linux-amd64]
+      label = "Linux (x86_64)"
+      asset = "pz-manager-linux-amd64"
+    [params.targets.darwin-arm64]
+      label = "macOS (Apple Silicon)"
+      asset = "pz-manager-darwin-arm64"
+    [params.targets.windows-amd64]
+      label = "Windows (x86_64)"
+      asset = "pz-manager-windows-amd64.exe"

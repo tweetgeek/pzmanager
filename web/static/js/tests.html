@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>tests · Project Zomboid Manager site</title>
+  <style>
+    body { font-family: ui-monospace, monospace; padding: 1.5rem; background: #111; color: #eee; }
+    h1 { font-family: -apple-system, system-ui, sans-serif; }
+    .pass { color: #6f6; }
+    .fail { color: #f66; }
+    .summary { margin-top: 1rem; padding: 0.5rem 1rem; border-radius: 6px; background: #222; }
+    pre { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>OS detection unit tests</h1>
+  <p>Open via <code>hugo serve</code> at <code>http://localhost:1313/js/tests.html</code>.</p>
+  <div id="results"></div>
+  <div id="summary" class="summary"></div>
+
+  <!-- Load the script under test; it exposes window.__pzm.detectTarget -->
+  <script src="./os-detect.js"></script>
+  <script>
+    var detectTarget = window.__pzm.detectTarget;
+    var results = document.getElementById("results");
+    var summary = document.getElementById("summary");
+    var passed = 0, failed = 0;
+
+    function it(name, fn) {
+      var div = document.createElement("div");
+      try {
+        fn();
+        div.className = "pass";
+        div.textContent = "✔ " + name;
+        passed++;
+      } catch (e) {
+        div.className = "fail";
+        div.innerHTML = "✘ " + name + "<pre>" + String(e.stack || e) + "</pre>";
+        failed++;
+      }
+      results.appendChild(div);
+    }
+    function eq(actual, expected, msg) {
+      if (actual !== expected) {
+        throw new Error((msg || "expected equal") + ": actual=" + JSON.stringify(actual) + ", expected=" + JSON.stringify(expected));
+      }
+    }
+
+    it("Windows", function () { eq(detectTarget("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"), "windows-amd64"); });
+    it("macOS Safari", function () { eq(detectTarget("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"), "darwin-arm64"); });
+    it("iPad", function () { eq(detectTarget("Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)"), "darwin-arm64"); });
+    it("Ubuntu Firefox", function () { eq(detectTarget("Mozilla/5.0 (X11; Ubuntu; Linux x86_64)"), "linux-amd64"); });
+    it("empty UA -> null", function () { eq(detectTarget(""), null); });
+    it("unknown -> null", function () { eq(detectTarget("Mozilla/5.0 (HypotheticalOS)"), null); });
+
+    summary.textContent = passed + " passed, " + failed + " failed";
+    summary.className = "summary " + (failed === 0 ? "pass" : "fail");
+  </script>
+</body>
+</html>

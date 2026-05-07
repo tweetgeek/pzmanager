@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ .Site.Title }}</title>
+  <meta name="description" content="{{ .Site.Params.description }}" />
+  <link rel="stylesheet" href="{{ "css/style.css" | relURL }}" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <h1>{{ .Site.Title }}</h1>
+      <p class="tagline">{{ .Site.Params.tagline }}</p>
+    </div>
+  </header>
+
+  <main>
+    {{- /* Pull data once. Empty data is allowed (renders graceful "no releases" state). */ -}}
+    {{- $data := hugo.Data.releases -}}
+    {{- $releases := default (slice) $data.releases -}}
+    {{- $latestTag := $data.latest -}}
+    {{- $latest := index (where $releases "tag" $latestTag) 0 -}}
+    {{- if (and (not $latest) $releases) -}}
+      {{- $latest = index $releases 0 -}}
+    {{- end -}}
+
+    <section class="hero">
+      <p class="hero-lead">
+        A cross-platform desktop app that launches Project Zomboid and keeps a safety net
+        of versioned save backups. Built with Go and Fyne.
+      </p>
+      <div id="primary-download" class="primary-download">
+        {{- if $latest -}}
+          {{- range $key, $cfg := .Site.Params.targets -}}
+            {{- $asset := index $latest.assets $key -}}
+            {{- if $asset -}}
+              <a class="btn btn-primary cta cta-{{ $key }}" data-target="{{ $key }}" href="{{ $asset.url }}" hidden>
+                Download {{ $latest.tag }} for {{ $cfg.label }}
+              </a>
+            {{- end -}}
+          {{- end -}}
+          <a class="btn btn-primary cta cta-fallback" href="#downloads">
+            Download {{ $latest.tag }}
+          </a>
+          <p class="download-note">
+            Latest release · published {{ dateFormat "2006-01-02" $latest.published_at }}
+          </p>
+        {{- else -}}
+          <p class="muted">No releases yet — check back soon.</p>
+        {{- end -}}
+      </div>
+    </section>
+
+    <section class="features" aria-label="Features">
+      <h2>Features</h2>
+      <ul class="feature-list">
+        <li><strong>Save list with metadata</strong> — game version, last played, size, backup count.</li>
+        <li><strong>Manual backups</strong> — ZIP or 1:1 folder copy, with optional labels.</li>
+        <li><strong>Auto-backup before launch</strong> — only when the save changed; configurable retention.</li>
+        <li><strong>Atomic restore</strong> — optional safety backup of the current save first.</li>
+        <li><strong>Three launcher modes</strong> — from the app, desktop shortcut, or Steam Launch Options.</li>
+        <li><strong>Steam-friendly progress window</strong> — shows backup status, with a skip button.</li>
+      </ul>
+    </section>
+
+    <section id="downloads" class="downloads" aria-label="Downloads">
+      <h2>Download</h2>
+      {{- if $latest -}}
+        <p class="muted">Pick the binary for your operating system. Latest stable release shown first.</p>
+        <table class="downloads-table">
+          <thead>
+            <tr><th>Operating system</th><th>File</th><th>Size</th><th>Version</th></tr>
+          </thead>
+          <tbody>
+            {{- range $key, $cfg := .Site.Params.targets -}}
+              {{- $asset := index $latest.assets $key -}}
+              <tr data-target="{{ $key }}">
+                <td>{{ $cfg.label }}<span class="recommended-marker"> · <strong>recommended</strong></span></td>
+                {{- if $asset -}}
+                  <td><a href="{{ $asset.url }}">{{ $asset.name }}</a></td>
+                  <td>{{ partial "humanizeSize.html" $asset.size }}</td>
+                  <td>{{ $latest.tag }}</td>
+                {{- else -}}
+                  <td><span class="muted">not available</span></td>
+                  <td></td>
+                  <td></td>
+                {{- end -}}
+              </tr>
+            {{- end -}}
+          </tbody>
+        </table>
+      {{- else -}}
+        <p class="muted">No release assets available.</p>
+      {{- end -}}
+    </section>
+
+    <section class="changelog" aria-label="Changelog">
+      <h2>Changelog</h2>
+      {{- if $releases -}}
+        {{- range $releases -}}
+          <article class="changelog-entry">
+            <h3>
+              <span class="version-tag">{{ .tag }}</span>
+              <span class="version-date">{{ dateFormat "2006-01-02" .published_at }}</span>
+              {{- if .prerelease -}}
+                <span class="version-prerelease">prerelease</span>
+              {{- end -}}
+            </h3>
+            <div class="body">
+              {{- if .body_md -}}
+                {{ .body_md | markdownify }}
+              {{- else -}}
+                <p class="muted">No release notes.</p>
+              {{- end -}}
+            </div>
+          </article>
+        {{- end -}}
+      {{- else -}}
+        <p class="muted">No releases yet.</p>
+      {{- end -}}
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      &copy; {{ now.Year }} {{ .Site.Title }}.
+      Project Zomboid is a trademark of The Indie Stone — this is an unaffiliated tool.
+    </p>
+  </footer>
+
+  <script src="{{ "js/os-detect.js" | relURL }}"></script>
+</body>
+</html>
