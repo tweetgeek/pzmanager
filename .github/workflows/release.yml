@@ -126,20 +126,42 @@ jobs:
           NUMERIC="${NUMERIC%%-*}"    # strip first - and everything after (pre-release)
           export GOFLAGS="-trimpath -ldflags=-s -ldflags=-w -ldflags=-X=main.Version=${TAG}"
 
-          ARGS=(
-            --os "${{ matrix.goos }}"
-            --name "Project Zomboid Manager"
-            --app-id pl.tweetgeek.pzmanager
-            --app-version "${NUMERIC}"
-            --icon "$(pwd)/internal/ui/icon.png"
-            --release
+          # Note: we do NOT pass --certificate here even on darwin. fyne v1.7.1
+          # signs the inner Mach-O via `codesign` but leaves _CodeSignature/CodeResources
+          # in an inconsistent state on the .app bundle, so verification later
+          # fails with "code has no resources but signature indicates they must
+          # be present". We sign the bundle manually in the next step instead.
+          fyne package \
+            --os "${{ matrix.goos }}" \
+            --name "Project Zomboid Manager" \
+            --app-id pl.tweetgeek.pzmanager \
+            --app-version "${NUMERIC}" \
+            --icon "$(pwd)/internal/ui/icon.png" \
+            --release \
             --src ./cmd/manager
-          )
-          if [ "${{ matrix.goos }}" = "darwin" ] && [ -n "${MAC_CERT_NAME:-}" ]; then
-            ARGS+=(--certificate "$MAC_CERT_NAME")
-          fi
 
-          fyne package "${ARGS[@]}"
+      # macOS only: sign the .app bundle ourselves. `--force` rebuilds the
+      # signature including a fresh CodeResources (avoids the fyne-induced
+      # inconsistent state). `--deep` recurses into nested binaries — for a
+      # Fyne app that's just the inner Mach-O. `--options=runtime` enables
+      # hardened runtime; `--timestamp` adds an RFC 3161 secure timestamp.
+      # Both are required by Apple notary service.
+      - name: Sign macOS bundle (codesign)
+        if: matrix.goos == 'darwin'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="Project Zomboid Manager.app"
+
+          codesign --force \
+            --options=runtime \
+            --timestamp \
+            --sign "$MAC_CERT_NAME" \
+            --deep \
+            "$APP"
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "Bundle signed and verified."
 
       # macOS only: notarize the signed .app with Apple's notary service, then
       # staple the resulting ticket so the bundle works offline. Without this,
@@ -160,9 +182,6 @@ jobs:
           NOTARIZE_ZIP="$RUNNER_TEMP/notarize.zip"
 
           echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > "$API_KEY_PATH"
-
-          # Sanity: confirm the app is actually signed before we waste time submitting.
-          codesign --verify --deep --strict --verbose=2 "$APP"
 
           # Submit a zipped copy (notary needs an archive, not a directory).
           ditto -c -k --sequesterRsrc --keepParent "$APP" "$NOTARIZE_ZIP"
