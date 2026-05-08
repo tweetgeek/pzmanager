@@ -45,27 +45,43 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # Fyne requires GUI dev headers on Linux runners.
+      # Fyne requires GUI dev headers on Linux runners. The cache action
+      # stores the .deb packages so subsequent runs skip the apt download +
+      # unpack (still runs dpkg --install, which is fast).
       - name: Install Linux build dependencies
         if: matrix.goos == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgl1-mesa-dev \
-            xorg-dev \
-            libxxf86vm-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxinerama-dev \
-            libxi-dev
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: libgl1-mesa-dev xorg-dev libxxf86vm-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev
+          version: "1.0"
 
       - name: Run tests
         env:
           CGO_ENABLED: 1
         run: go test ./...
 
+      # Fyne CLI is recompiled from source via `go install`, which is slow
+      # (~30-60s per run). Cache the resulting binary keyed on the pinned
+      # version + runner OS. Bump the version both here and in the install
+      # step below in lockstep.
+      - name: Cache Fyne CLI
+        id: fyne-cli-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/bin/fyne
+            ~/go/bin/fyne.exe
+          key: fyne-cli-${{ runner.os }}-v1.7.1
+
       - name: Install Fyne CLI
-        run: go install fyne.io/tools/cmd/fyne@latest
+        if: steps.fyne-cli-cache.outputs.cache-hit != 'true'
+        run: go install fyne.io/tools/cmd/fyne@v1.7.1
+
+      # Ensure the cached binary is on PATH (setup-go's GOPATH/bin is normally
+      # added but only after `go install` runs; on cache-hit we skip that step).
+      - name: Add Go bin to PATH
+        shell: bash
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       # macOS only: import the Developer ID Application certificate into a fresh
       # keychain so codesign (called internally by `fyne package --certificate`)
