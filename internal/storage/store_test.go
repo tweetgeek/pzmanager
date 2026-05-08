@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,18 +143,26 @@ func TestFsBackupStore_List_SkipsOrphanedMetadata(t *testing.T) {
 	saveDir := filepath.Join(backupRoot, "savex")
 	os.MkdirAll(saveDir, 0o755)
 
-	// valid metadata pointing at non-existent archive
+	// Valid JSON metadata pointing at a non-existent archive. We marshal via
+	// encoding/json so the path is properly escaped on Windows (raw backslashes
+	// in a JSON string would produce invalid escape sequences and route through
+	// the "corrupted metadata" branch instead of the "missing archive" branch
+	// we intend to test.
 	metaPath := filepath.Join(saveDir, "20260506-120000-deadbeef.json")
-	metaJSON := `{
-        "id": "20260506-120000-deadbeef",
-        "save_id": "savex",
-        "save_name": "X",
-        "created_at": "2026-05-06T12:00:00Z",
-        "kind": "manual",
-        "format": "folder",
-        "path": "` + filepath.Join(saveDir, "nonexistent-archive") + `"
-    }`
-	os.WriteFile(metaPath, []byte(metaJSON), 0o644)
+	meta := domain.Backup{
+		ID:        "20260506-120000-deadbeef",
+		SaveID:    "savex",
+		SaveName:  "X",
+		CreatedAt: time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC),
+		Kind:      domain.BackupKindManual,
+		Format:    domain.BackupFormatFolder,
+		Path:      filepath.Join(saveDir, "nonexistent-archive"),
+	}
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(metaPath, metaJSON, 0o644)
 
 	s := NewFsBackupStore(backupRoot)
 	backups, err := s.List("savex")

@@ -43,12 +43,22 @@ func TestHashSaveContents_SameFiles_SameHash(t *testing.T) {
 }
 
 func TestHashSaveContents_ChangedFile_ChangedHash(t *testing.T) {
+	// Use distinct file sizes between the two writes. HashSaveContents inputs
+	// {relPath, size, mtime}; relying on mtime alone is racy on filesystems
+	// where consecutive writes can land on the same clock tick (notably Windows).
+	// Real save changes always alter both size and mtime, so this is realistic.
 	dir := t.TempDir()
 	p := filepath.Join(dir, "map_meta.bin")
 	os.WriteFile(p, []byte("v1"), 0o644)
-	h1, _ := HashSaveContents(dir)
-	os.WriteFile(p, []byte("v2"), 0o644)
-	h2, _ := HashSaveContents(dir)
+	h1, err := HashSaveContents(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(p, []byte("version 2 with longer content"), 0o644)
+	h2, err := HashSaveContents(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if h1 == h2 {
 		t.Error("expected hash to change after file content change")
 	}
