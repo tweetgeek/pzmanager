@@ -33,3 +33,5 @@ Thumbs.db
 
 # Wrangler local cache (created when running wrangler locally for testing)
 /.wrangler/
+
+.env
