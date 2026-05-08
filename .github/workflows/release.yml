@@ -23,17 +23,17 @@ jobs:
             runner: ubuntu-latest
             goos: linux
             goarch: amd64
-            ext: ""
+            artifact: pz-manager-linux-amd64.tar.xz
           - target: darwin-arm64
             runner: macos-14
             goos: darwin
             goarch: arm64
-            ext: ""
+            artifact: pz-manager-darwin-arm64.app.zip
           - target: windows-amd64
             runner: windows-latest
             goos: windows
             goarch: amd64
-            ext: ".exe"
+            artifact: pz-manager-windows-amd64.exe
 
     steps:
       - name: Checkout
@@ -64,26 +64,149 @@ jobs:
           CGO_ENABLED: 1
         run: go test ./...
 
-      - name: Build binary
+      - name: Install Fyne CLI
+        run: go install fyne.io/tools/cmd/fyne@latest
+
+      # macOS only: import the Developer ID Application certificate into a fresh
+      # keychain so codesign (called internally by `fyne package --certificate`)
+      # can find and use it. The keychain is ephemeral — torn down with the runner.
+      - name: Import macOS signing certificate
+        if: matrix.goos == 'darwin'
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo "$APPLE_CERT_P12_BASE64" | base64 -d > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Find the cert's full Common Name (e.g. "Developer ID Application: Sebastian X (TEAMID)")
+          CERT_NAME=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+          if [ -z "$CERT_NAME" ]; then
+            echo "::error::No Developer ID Application identity found in imported keychain"
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+            exit 1
+          fi
+          echo "Using signing identity: $CERT_NAME"
+          echo "MAC_CERT_NAME=$CERT_NAME" >> "$GITHUB_ENV"
+
+          rm -f "$CERT_PATH"
+
+      # `fyne package` produces:
+      #   - linux:   pz-manager.tar.xz  (binary + .desktop + pixmap)
+      #   - darwin:  Project Zomboid Manager.app  (bundle dir with .icns + Info.plist)
+      #              When --certificate is set, codesign runs with hardened runtime
+      #              + secure timestamp (both required for notarization).
+      #   - windows: Project Zomboid Manager.exe  (with embedded ICO resource)
+      #
+      # --app-version expects strict X.Y.Z. We strip the leading "v" and any pre-release
+      # suffix (e.g. v0.1.0-rc1 -> 0.1.0). The full tag (with rc suffix) is still
+      # injected into main.Version via GOFLAGS so `--version` shows the original tag.
+      - name: Package binary with fyne package
         env:
           CGO_ENABLED: 1
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         shell: bash
         run: |
-          OUT="pz-manager-${{ matrix.target }}${{ matrix.ext }}"
-          go build \
-            -trimpath \
-            -ldflags "-s -w -X main.Version=${GITHUB_REF_NAME}" \
-            -o "$OUT" \
-            ./cmd/manager
-          echo "ARTIFACT=$OUT" >> "$GITHUB_ENV"
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          NUMERIC="${TAG#v}"          # strip leading v
+          NUMERIC="${NUMERIC%%-*}"    # strip first - and everything after (pre-release)
+          export GOFLAGS="-trimpath -ldflags=-s -ldflags=-w -ldflags=-X=main.Version=${TAG}"
+
+          ARGS=(
+            --os "${{ matrix.goos }}"
+            --name "Project Zomboid Manager"
+            --app-id pl.tweetgeek.pzmanager
+            --app-version "${NUMERIC}"
+            --icon "$(pwd)/internal/ui/icon.png"
+            --release
+            --src ./cmd/manager
+          )
+          if [ "${{ matrix.goos }}" = "darwin" ] && [ -n "${MAC_CERT_NAME:-}" ]; then
+            ARGS+=(--certificate "$MAC_CERT_NAME")
+          fi
+
+          fyne package "${ARGS[@]}"
+
+      # macOS only: notarize the signed .app with Apple's notary service, then
+      # staple the resulting ticket so the bundle works offline. Without this,
+      # macOS 10.15+ shows a "developer cannot be verified" warning even on a
+      # signed app, because Gatekeeper checks for a notarization stapled or
+      # online.
+      - name: Notarize and staple (macOS)
+        if: matrix.goos == 'darwin'
+        env:
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          APPLE_API_KEY_ID:        ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID:     ${{ secrets.APPLE_API_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="Project Zomboid Manager.app"
+          API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          NOTARIZE_ZIP="$RUNNER_TEMP/notarize.zip"
+
+          echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > "$API_KEY_PATH"
+
+          # Sanity: confirm the app is actually signed before we waste time submitting.
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+          # Submit a zipped copy (notary needs an archive, not a directory).
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$NOTARIZE_ZIP"
+
+          echo "Submitting to Apple notary service (this typically takes 1-5 minutes)..."
+          xcrun notarytool submit "$NOTARIZE_ZIP" \
+            --key "$API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --wait
+
+          # Attach the ticket to the .app so it works on machines with no internet.
+          xcrun stapler staple "$APP"
+
+          # Final acceptance check — should print "accepted, source=Notarized Developer ID".
+          spctl --assess --verbose --type execute "$APP"
+
+          rm -f "$API_KEY_PATH" "$NOTARIZE_ZIP"
+
+      - name: Normalize output filename
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.target }}" in
+            linux-amd64)
+              # fyne uses Name from FyneApp.toml: "Project Zomboid Manager.tar.xz"
+              mv "Project Zomboid Manager.tar.xz" "${{ matrix.artifact }}"
+              ;;
+            darwin-arm64)
+              # zip the .app bundle (preserving symlinks and exec bits)
+              ditto -c -k --sequesterRsrc --keepParent "Project Zomboid Manager.app" "${{ matrix.artifact }}"
+              rm -rf "Project Zomboid Manager.app"
+              ;;
+            windows-amd64)
+              mv "Project Zomboid Manager.exe" "${{ matrix.artifact }}"
+              ;;
+          esac
+          ls -la "${{ matrix.artifact }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: ${{ env.ARTIFACT }}
+          path: ${{ matrix.artifact }}
           if-no-files-found: error
           retention-days: 7
 

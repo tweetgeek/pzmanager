@@ -70,9 +70,9 @@ jobs:
                     prerelease: .prerelease,
                     body_md: (.body // ""),
                     assets: ({
-                      "linux-amd64":   (asset_for("pz-manager-linux-amd64")       | if . then { name: .name, url: .browser_download_url, size: .size } else null end),
-                      "darwin-arm64":  (asset_for("pz-manager-darwin-arm64")      | if . then { name: .name, url: .browser_download_url, size: .size } else null end),
-                      "windows-amd64": (asset_for("pz-manager-windows-amd64.exe") | if . then { name: .name, url: .browser_download_url, size: .size } else null end)
+                      "linux-amd64":   (asset_for("pz-manager-linux-amd64.tar.xz")  | if . then { name: .name, url: .browser_download_url, size: .size } else null end),
+                      "darwin-arm64":  (asset_for("pz-manager-darwin-arm64.app.zip") | if . then { name: .name, url: .browser_download_url, size: .size } else null end),
+                      "windows-amd64": (asset_for("pz-manager-windows-amd64.exe")    | if . then { name: .name, url: .browser_download_url, size: .size } else null end)
                     } | with_entries(select(.value != null)))
                   }
                 ]

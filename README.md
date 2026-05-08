@@ -55,7 +55,7 @@ go test ./...
 The project uses GitHub Actions for distribution. See `.github/workflows/`:
 
 - **`ci.yml`** — runs on every push / pull request to `main`. Verifies `go vet`, `go test`, and a Linux build. Catches regressions before tagging.
-- **`release.yml`** — runs on tags matching `v*`. Builds binaries for Linux amd64, macOS arm64, and Windows amd64 on native runners (Fyne requires CGO so cross-compilation is impractical), then publishes a GitHub Release with the binaries attached.
+- **`release.yml`** — runs on tags matching `v*`. Packages with `fyne package` for Linux amd64, macOS arm64, and Windows amd64 on native runners (Fyne requires CGO so cross-compilation is impractical), producing platform-native bundles with embedded icons (`.app` with `.icns`, `.exe` with ICO resource, `.tar.xz` with `.desktop` + pixmap). Then publishes a GitHub Release with the bundles attached.
 
 ### How to cut a release
 
@@ -71,11 +71,11 @@ The `release.yml` workflow picks up the push, runs the matrix build, and creates
 
 Released artifacts:
 
-- `pz-manager-linux-amd64`
-- `pz-manager-darwin-arm64`
-- `pz-manager-windows-amd64.exe`
+- `pz-manager-linux-amd64.tar.xz` — extract, run binary or install via included Makefile (places `.desktop` entry + icon pixmap)
+- `pz-manager-darwin-arm64.app.zip` — unzip, drag `Project Zomboid Manager.app` to Applications. Signed with Developer ID + notarized by Apple, so first launch works normally.
+- `pz-manager-windows-amd64.exe` — double-click. Unsigned: SmartScreen warning on first run.
 
-The version printed by `pz-manager --version` is injected at build time from the tag name via `-ldflags "-X main.Version=$GITHUB_REF_NAME"`.
+The version printed by `pz-manager --version` is injected at build time via `GOFLAGS="-ldflags=-X=main.Version=$GITHUB_REF_NAME"` (full tag including any `-rc` suffix). The bundle metadata version (Info.plist `CFBundleShortVersionString`, Windows file properties) is the strict X.Y.Z form passed to `fyne package --app-version`.
 
 ## Website
 
