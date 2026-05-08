@@ -120,11 +120,14 @@ jobs:
           rm -f "$CERT_PATH"
 
       # `fyne package` produces:
-      #   - linux:   pz-manager.tar.xz  (binary + .desktop + pixmap)
-      #   - darwin:  Project Zomboid Manager.app  (bundle dir with .icns + Info.plist)
+      #   - linux:   ./Project Zomboid Manager.tar.xz  (in CWD; binary + .desktop + pixmap)
+      #   - darwin:  ./Project Zomboid Manager.app     (in CWD; bundle dir with .icns + Info.plist)
       #              When --certificate is set, codesign runs with hardened runtime
       #              + secure timestamp (both required for notarization).
-      #   - windows: Project Zomboid Manager.exe  (with embedded ICO resource)
+      #   - windows: ./cmd/manager/Project Zomboid Manager.exe  (with embedded ICO resource)
+      #              fyne v1.7.1 quirk with --src: linux/darwin write to p.dir (original CWD),
+      #              but windows renames via basename after Chdir(srcDir), leaving the .exe
+      #              inside the source directory. Compensated for in the Normalize step below.
       #
       # --app-version expects strict X.Y.Z. We strip the leading "v" and any pre-release
       # suffix (e.g. v0.1.0-rc1 -> 0.1.0). The full tag (with rc suffix) is still
@@ -232,7 +235,9 @@ jobs:
               rm -rf "Project Zomboid Manager.app"
               ;;
             windows-amd64)
-              mv "Project Zomboid Manager.exe" "${{ matrix.artifact }}"
+              # See note above the fyne package step: --src leaves the .exe in the
+              # source directory on windows (unlike linux/darwin which write to CWD).
+              mv "cmd/manager/Project Zomboid Manager.exe" "${{ matrix.artifact }}"
               ;;
           esac
           ls -la "${{ matrix.artifact }}"
