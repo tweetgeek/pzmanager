@@ -8,6 +8,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -95,11 +97,24 @@ func NewSettingsView(svc *Services, swap func(fyne.CanvasObject)) fyne.CanvasObj
 		ShowLauncherWizard(svc)
 	})
 
+	savesRow := container.NewBorder(nil, nil, nil,
+		widget.NewButtonWithIcon("", theme.FolderOpenIcon(), func() { pickFolder(savesEntry, win) }),
+		savesEntry,
+	)
+	installRow := container.NewBorder(nil, nil, nil,
+		widget.NewButtonWithIcon("", theme.FolderOpenIcon(), func() { pickFolder(installEntry, win) }),
+		installEntry,
+	)
+	backupRow := container.NewBorder(nil, nil, nil,
+		widget.NewButtonWithIcon("", theme.FolderOpenIcon(), func() { pickFolder(backupEntry, win) }),
+		backupEntry,
+	)
+
 	paths := widget.NewCard("Paths", "Where to find game files",
 		container.NewVBox(
-			widget.NewLabel("Saves:"), savesEntry,
-			widget.NewLabel("Game install:"), installEntry,
-			widget.NewLabel("Backup directory:"), backupEntry,
+			widget.NewLabel("Saves:"), savesRow,
+			widget.NewLabel("Game install:"), installRow,
+			widget.NewLabel("Backup directory:"), backupRow,
 			autoDetectBtn,
 		),
 	)
@@ -124,4 +139,28 @@ func pathExists(p string) bool {
 	}
 	_, err := os.Stat(p)
 	return err == nil
+}
+
+// pickFolder opens a Fyne folder picker rooted at entry.Text (if it points to
+// an existing directory), and writes the selected path back into entry.
+// Cancellation and dialog errors are silent — the entry keeps its prior text.
+func pickFolder(entry *widget.Entry, win fyne.Window) {
+	if win == nil {
+		return
+	}
+	d := dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
+		if err != nil || uri == nil {
+			return
+		}
+		entry.SetText(uri.Path())
+	}, win)
+
+	if entry.Text != "" {
+		if info, err := os.Stat(entry.Text); err == nil && info.IsDir() {
+			if loc, err := storage.ListerForURI(storage.NewFileURI(entry.Text)); err == nil {
+				d.SetLocation(loc)
+			}
+		}
+	}
+	d.Show()
 }
