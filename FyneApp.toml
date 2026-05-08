@@ -1,0 +1,18 @@
+# Fyne app metadata used by `fyne package` to produce platform bundles
+# (.app on macOS with .icns, .exe on Windows with embedded ICO resource,
+# .tar.xz on Linux with .desktop + pixmap).
+#
+# Version is overridden at release time by `fyne package -appVersion <tag>`
+# so the value here is just a default for local `fyne package` invocations.
+
+[Details]
+Name    = "Project Zomboid Manager"
+ID      = "pl.tweetgeek.pzmanager"
+Icon    = "internal/ui/icon.png"
+Version = "0.0.0"
+Build   = 1
+
+[LinuxAndBSD]
+GenericName = "Save Manager"
+Comment     = "Cross-platform launcher and save backup manager for Project Zomboid"
+Categories  = ["Game", "Utility"]

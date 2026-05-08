@@ -26,10 +26,10 @@ disableKinds = ["taxonomy", "term", "RSS", "sitemap"]
   [params.targets]
     [params.targets.linux-amd64]
       label = "Linux (x86_64)"
-      asset = "pz-manager-linux-amd64"
+      asset = "pz-manager-linux-amd64.tar.xz"
     [params.targets.darwin-arm64]
       label = "macOS (Apple Silicon)"
-      asset = "pz-manager-darwin-arm64"
+      asset = "pz-manager-darwin-arm64.app.zip"
     [params.targets.windows-amd64]
       label = "Windows (x86_64)"
       asset = "pz-manager-windows-amd64.exe"

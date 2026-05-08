@@ -139,7 +139,8 @@ pz-manager --auto-launch -- <args...>   # Steam Launch Options: args after `--`
 ## Things deliberately NOT done (don't re-introduce without asking)
 
 - Code signing / notarization (Apple, Windows) — needs cert secrets, out of MVP scope
-- `fyne package` (proper OS-native bundles: `.app` with `.icns`, `.exe` with Windows resource icon, `.dmg`) — needs `FyneApp.toml`. Release workflow currently does plain `go build`, which means binaries embed the icon at runtime via `app.SetIcon` / `window.SetIcon` (works for the in-app icon: titlebar, taskbar, dock at runtime), but file-thumbnail / Finder-icon / .exe-resource-icon are NOT set. Switch to `fyne package` if you ever want those. Asset is ready: `internal/ui/icon.png` (512×512 PNG, ~423 KB).
+- Windows code signing (Authenticode) — `release.yml` produces an unsigned `.exe`. SmartScreen warns on first run; user clicks "More info → Run anyway". Real signing needs a code-signing cert (DigiCert / SSL.com / etc., ~$200+/yr) + `signtool.exe`. Out of scope.
+- `.dmg` for macOS instead of `.app.zip` — would need `create-dmg` or similar. ZIP works fine.
 - macOS Intel (amd64) builds — only ARM64 in release matrix
 - I18n / Polish UI labels — UI text is EN-only
 - Mock-based UI testing — Fyne tests use `test.NewApp()` headless driver, smoke-only
@@ -158,7 +159,27 @@ pz-manager --auto-launch -- <args...>   # Steam Launch Options: args after `--`
   cp assets/icon.png internal/ui/icon.png
   cp assets/icon.png web/static/icon.png
   ```
-- File-system icons (Finder thumbnail, .exe icon, .icns) are NOT set — that needs `fyne package` (see "Things deliberately NOT done" above).
+- File-system icons (Finder thumbnail, .exe resource icon, .icns inside .app bundle) are set via `fyne package` in `release.yml`. The CI converts `internal/ui/icon.png` → `.icns` (macOS) and `.ico` (Windows) automatically. See `FyneApp.toml` at repo root for the metadata fed to `fyne package` (Name, ID, Icon, Version) — `Version` and `Icon` (path) are overridden by CI flags; `Name` and `ID` come from the TOML.
+
+## macOS code signing + notarization
+
+The release workflow produces a signed and notarized `.app` for macOS so users don't see Gatekeeper warnings on first launch.
+
+- **Apple Developer Program** ($99/yr) is required. Provides the Developer ID Application certificate + access to the notary service.
+- **Certificate name** is auto-detected from the imported keychain at runtime (`security find-identity -v -p codesigning | grep "Developer ID Application"`). No need to hardcode the team name in the workflow — only the Team ID is implicit through the cert.
+- **Required GitHub repo secrets:**
+  - `APPLE_CERT_P12_BASE64` — base64-encoded `.p12` export of the Developer ID Application cert (run `base64 -i Certificates.p12` on the source machine)
+  - `APPLE_CERT_PASSWORD` — password set when exporting the `.p12`
+  - `APPLE_API_KEY_ID` — App Store Connect API Key ID
+  - `APPLE_API_ISSUER_ID` — App Store Connect API Issuer ID
+  - `APPLE_API_KEY_P8_BASE64` — base64-encoded `.p8` private key file (downloaded once from App Store Connect; can't be re-downloaded — store it carefully)
+  - `APPLE_TEAM_ID` — currently unused by the workflow but kept as a reference; the cert's Team ID is sufficient
+- **Flow** (in `release.yml`, darwin matrix only):
+  1. `Import macOS signing certificate` — decodes p12, creates ephemeral keychain, imports cert, exports `MAC_CERT_NAME` env var
+  2. `Package binary with fyne package` — passes `--certificate "$MAC_CERT_NAME"` so codesign runs with hardened runtime + secure timestamp (both required for notarization)
+  3. `Notarize and staple (macOS)` — submits zipped `.app` to `xcrun notarytool` (waits ~1-5 min), then `xcrun stapler staple` attaches the ticket so it works offline
+- **Notary log on failure** — if `notarytool submit --wait` exits non-zero, currently you'd need to follow up with `xcrun notarytool log <submission-id>` to see what Apple flagged. Could be wired into the workflow on failure (`if: failure()` step) — not done yet.
+- **Renewing the cert** — Developer ID Application certs expire after 5 years. Re-export, base64, update the GH secret. The `notarytool` API key has its own (configurable) lifetime.
 
 ## Documentation
 

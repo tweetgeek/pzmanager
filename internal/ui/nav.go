@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 )
@@ -39,13 +40,21 @@ func NewNavSidebar(onSelect func(section string)) *NavSidebar {
 		}
 	}
 
+	icon := canvas.NewImageFromResource(AppIcon)
+	icon.FillMode = canvas.ImageFillContain
+	icon.SetMinSize(fyne.NewSize(64, 64))
+
 	launchBtn := widget.NewButton("▶ Launch Game", func() {
 		if onSelect != nil {
 			onSelect("launch")
 		}
 	})
 
-	n.cont = container.NewBorder(launchBtn, nil, nil, nil, n.items)
+	top := container.NewVBox(
+		container.NewCenter(icon),
+		launchBtn,
+	)
+	n.cont = container.NewBorder(top, nil, nil, nil, n.items)
 	return n
 }
 

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
@@ -35,10 +36,19 @@ func NewProgressWindow(fyneApp fyne.App) *ProgressWindow {
 		p.skipBtn.Disable()
 	})
 
-	body := container.NewVBox(p.status, p.progress, p.skipBtn)
+	icon := canvas.NewImageFromResource(AppIcon)
+	icon.FillMode = canvas.ImageFillContain
+	icon.SetMinSize(fyne.NewSize(80, 80))
+
+	body := container.NewVBox(
+		container.NewCenter(icon),
+		p.status,
+		p.progress,
+		p.skipBtn,
+	)
 	p.win.SetContent(body)
 	p.win.SetIcon(AppIcon)
-	p.win.Resize(fyne.NewSize(400, 180))
+	p.win.Resize(fyne.NewSize(400, 280))
 	p.win.SetFixedSize(true)
 	return p
 }
