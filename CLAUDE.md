@@ -139,11 +139,26 @@ pz-manager --auto-launch -- <args...>   # Steam Launch Options: args after `--`
 ## Things deliberately NOT done (don't re-introduce without asking)
 
 - Code signing / notarization (Apple, Windows) — needs cert secrets, out of MVP scope
-- `fyne package` (proper `.app`/`.exe` bundles with embedded icons) — needs `FyneApp.toml` and `icon.png`. Workflow uses plain `go build` instead. There's an untracked `pzmod.jpg` in repo root that may become the icon source — confirm with user before integrating.
+- `fyne package` (proper OS-native bundles: `.app` with `.icns`, `.exe` with Windows resource icon, `.dmg`) — needs `FyneApp.toml`. Release workflow currently does plain `go build`, which means binaries embed the icon at runtime via `app.SetIcon` / `window.SetIcon` (works for the in-app icon: titlebar, taskbar, dock at runtime), but file-thumbnail / Finder-icon / .exe-resource-icon are NOT set. Switch to `fyne package` if you ever want those. Asset is ready: `internal/ui/icon.png` (512×512 PNG, ~423 KB).
 - macOS Intel (amd64) builds — only ARM64 in release matrix
 - I18n / Polish UI labels — UI text is EN-only
 - Mock-based UI testing — Fyne tests use `test.NewApp()` headless driver, smoke-only
 - Auto-update / telemetry / tray icon
+
+## Branding / icon
+
+- Master source: `assets/icon-source.jpg` (585×585 JPEG, original artwork — backpack + save disk + folder + gear, "PZ MANAGER" text).
+- Production asset: `assets/icon.png` (512×512 PNG, generated from JPG via `sips -s format png -Z 512`).
+- Two consumers, both with their own copy of the PNG (manual sync — re-copy from `assets/icon.png` if the source changes):
+  - `internal/ui/icon.png` — embedded into Fyne binary via `//go:embed` in `internal/ui/app.go` as `ui.AppIcon` (`fyne.StaticResource`). Set on the Fyne app and on every window (`fyneApp.SetIcon`, `window.SetIcon`).
+  - `web/static/icon.png` — served as `/icon.png` by Hugo. Used in `web/layouts/index.html` as favicon, apple-touch-icon, and OpenGraph image.
+- To regenerate the PNGs after updating `assets/icon-source.jpg`:
+  ```bash
+  sips -s format png -Z 512 assets/icon-source.jpg --out assets/icon.png
+  cp assets/icon.png internal/ui/icon.png
+  cp assets/icon.png web/static/icon.png
+  ```
+- File-system icons (Finder thumbnail, .exe icon, .icns) are NOT set — that needs `fyne package` (see "Things deliberately NOT done" above).
 
 ## Documentation
 

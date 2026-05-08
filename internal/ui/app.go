@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	_ "embed"
 	"log"
 
 	"fyne.io/fyne/v2"
@@ -12,6 +13,13 @@ import (
 	"pzm/internal/platform"
 	"pzm/internal/storage"
 )
+
+//go:embed icon.png
+var iconPNG []byte
+
+// AppIcon — wbudowana ikona aplikacji (źródło: assets/icon.png).
+// Używana przez App.NewApp i ProgressWindow do ustawienia ikony okna i appki.
+var AppIcon = fyne.NewStaticResource("icon.png", iconPNG)
 
 // Services — zbiór zależności wstrzykiwanych do widoków UI.
 type Services struct {
@@ -33,12 +41,14 @@ type App struct {
 }
 
 func NewApp(fyneApp fyne.App, svc *Services) *App {
+	fyneApp.SetIcon(AppIcon)
 	a := &App{
 		fyneApp:  fyneApp,
 		services: svc,
 		content:  container.NewStack(),
 	}
 	a.window = fyneApp.NewWindow("Project Zomboid Manager")
+	a.window.SetIcon(AppIcon)
 	a.window.Resize(fyne.NewSize(900, 600))
 
 	a.nav = NewNavSidebar(a.onSelect)

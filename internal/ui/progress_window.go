@@ -37,6 +37,7 @@ func NewProgressWindow(fyneApp fyne.App) *ProgressWindow {
 
 	body := container.NewVBox(p.status, p.progress, p.skipBtn)
 	p.win.SetContent(body)
+	p.win.SetIcon(AppIcon)
 	p.win.Resize(fyne.NewSize(400, 180))
 	p.win.SetFixedSize(true)
 	return p
