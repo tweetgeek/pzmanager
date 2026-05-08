@@ -1,0 +1,19 @@
+{
+  "commands": [
+    {
+      "name": "vet",
+      "command": "go vet ./...",
+      "shortcut_key": "v"
+    },
+    {
+      "name": "test",
+      "command": "go test ./...",
+      "shortcut_key": "t"
+    },
+    {
+      "name": "build",
+      "command": "go build ./...",
+      "shortcut_key": "b"
+    }
+  ]
+}
